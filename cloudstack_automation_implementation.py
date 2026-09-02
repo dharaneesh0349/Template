@@ -694,7 +694,8 @@ class ScriptGenerator:
     def generate_cloud_init_enablement(self) -> ExecutionStep:
         """Enable systemd cloud-init units in proper boot sequence"""
         cmds = [
-            "rm -f /etc/cloud/cloud-init.disabled 2>/dev/null || true",
+            "rm -f /etc/cloud/cloud-init.disabled /etc/cloud/cloud-init.disabled* 2>/dev/null || true",
+            "systemctl unmask cloud-init-local.service cloud-init.service cloud-config.service cloud-final.service 2>/dev/null || true",
             "systemctl enable cloud-init-local.service 2>/dev/null || true",
             "systemctl enable cloud-init.service 2>/dev/null || true",
             "systemctl enable cloud-config.service 2>/dev/null || true",
@@ -712,9 +713,13 @@ class ScriptGenerator:
         cmds = [
             # Remove Subiquity installer overrides that disable cloud-init networking & datasources
             "rm -f /etc/cloud/cloud.cfg.d/00-subiquity* /etc/cloud/cloud.cfg.d/99-installer.cfg /etc/cloud/cloud.cfg.d/subiquity* 2>/dev/null || true",
+            # Remove cloud-init disabled marker file
+            "rm -f /etc/cloud/cloud-init.disabled /etc/cloud/cloud-init.disabled* 2>/dev/null || true",
             # Cloud-init state clean
             "cloud-init clean --logs --seed 2>/dev/null || rm -rf /var/lib/cloud/*",
             "rm -rf /var/log/cloud-init*.log /var/log/cloud-init* 2>/dev/null || true",
+            # Ensure disabled marker is not recreated by any tool
+            "rm -f /etc/cloud/cloud-init.disabled /etc/cloud/cloud-init.disabled* 2>/dev/null || true",
             # Network MAC & Udev rules clean
             "rm -f /etc/udev/rules.d/70-persistent-net.rules /etc/udev/rules.d/70* 2>/dev/null || true",
             "rm -f /var/lib/dhcp/* /var/lib/dhclient/* /var/lib/NetworkManager/* 2>/dev/null || true",
@@ -734,6 +739,8 @@ class ScriptGenerator:
             "history -c 2>/dev/null || true",
             "> /root/.bash_history 2>/dev/null || true",
             f"> /home/{self.username}/.bash_history 2>/dev/null || true",
+            # Final check that cloud-init disabled file does not exist
+            "rm -f /etc/cloud/cloud-init.disabled 2>/dev/null || true",
             "sync"
         ]
         return ExecutionStep(
@@ -909,12 +916,15 @@ class TemplateBuilder:
             except Exception:
                 checks[f"{name}_exists"] = False
 
-        # 2. Cloud-init status
+        # 2. Cloud-init status and enabled state
         try:
             status_output = self.ssh.execute("cloud-init --version 2>/dev/null", sudo=True).strip()
+            disabled_marker = self.ssh.execute("test -f /etc/cloud/cloud-init.disabled && echo 'DISABLED' || echo 'ENABLED'", sudo=True).strip()
             checks["cloud_init_installed"] = bool(status_output)
+            checks["cloud_init_enabled"] = ("ENABLED" in disabled_marker)
         except Exception:
             checks["cloud_init_installed"] = False
+            checks["cloud_init_enabled"] = False
 
         # 3. Machine ID sanitized
         try:
