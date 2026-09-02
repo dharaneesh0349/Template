@@ -97,13 +97,12 @@ python -m uvicorn fastapi_backend:app --reload --host 0.0.0.0 --port 8000
 ```
 *Backend API and Web Dashboard will be live at `http://localhost:8000`.*
 
-### 2. Frontend Development Server (Optional)
+### 3. Cleanup & Reset
+To stop all containers and remove cached images for a clean retry:
 ```bash
-cd frontend
-npm install
-npm run dev
+./cleanup.sh         # Cleans containers and images, keeps database
+./cleanup.sh --all   # Cleans containers, images, and purges database
 ```
-*Frontend dev server runs at `http://localhost:3000` with hot module reloading and API proxying.*
 
 ---
 

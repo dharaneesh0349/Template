@@ -247,8 +247,8 @@ else
     ok ".env file found."
 fi
 
-# Ensure data directory exists
-mkdir -p data
+# Ensure data directory exists with write permissions
+mkdir -p data && chmod 777 data 2>/dev/null || true
 
 # ── Pull latest image ──────────────────────────────────────
 banner "📥 Pulling latest image from Docker Hub..."

@@ -88,8 +88,12 @@ class ExecutionStepRecord(Base):
 def get_db_url() -> str:
     db_url = os.getenv("DATABASE_URL", "sqlite:///./data/cloudstack_automation.db")
     if db_url.startswith("sqlite"):
-        db_path = db_url.replace("sqlite:///", "")
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            db_path = db_url.replace("sqlite:///", "")
+            if not db_path.startswith(":memory:"):
+                Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
     return db_url
 
 
@@ -97,9 +101,20 @@ def init_db(engine=None):
     if engine is None:
         db_url = get_db_url()
         connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
-        engine = create_engine(db_url, connect_args=connect_args, echo=False)
+        try:
+            engine = create_engine(db_url, connect_args=connect_args, echo=False)
+            Base.metadata.create_all(engine)
+        except Exception as e:
+            if db_url.startswith("sqlite"):
+                fallback_url = "sqlite:////tmp/cloudstack_automation.db"
+                print(f"Warning: Could not open database at {db_url} ({e}). Falling back to {fallback_url}")
+                engine = create_engine(fallback_url, connect_args=connect_args, echo=False)
+                Base.metadata.create_all(engine)
+            else:
+                raise
+    else:
+        Base.metadata.create_all(engine)
     
-    Base.metadata.create_all(engine)
     print(f"Database schema initialized successfully on {engine.url}")
     return engine
 

@@ -17,8 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend application source
 COPY . .
 
-# Initialize sqlite directory
-RUN mkdir -p /app/data
+# Initialize sqlite directory with full read/write permissions
+RUN mkdir -p /app/data && chmod 777 /app/data
 
 # Non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
