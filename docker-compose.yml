@@ -1,0 +1,77 @@
+version: '3.8'
+
+# =========================================================
+# CloudStack Template Automation - Docker Compose
+# Image: dharaneesh5/template  (Docker Hub)
+#
+# Usage for local WSL testing (no build required):
+#   docker compose -f docker-compose.yml up -d
+#
+# Uses the pre-built image from Docker Hub.
+# WSL access: http://localhost:8000  (API + Web UI)
+#             http://localhost:3000  (React Frontend)
+# =========================================================
+
+services:
+  backend:
+    image: dharaneesh5/template:latest
+    container_name: cloudstack-automation-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - API_LOG_LEVEL=INFO
+      # Override DB to use SQLite for simple local WSL testing
+      - DATABASE_URL=sqlite:///./data/cloudstack_automation.db
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000
+    volumes:
+      - ./data:/app/data
+    networks:
+      - cloudstack-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ---- Optional: Production mode with PostgreSQL ----
+  # backend-postgres:
+  #   image: dharaneesh5/template:latest
+  #   environment:
+  #     - DATABASE_URL=postgresql://postgres:password@postgres:5432/cloudstack_automation
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+  # ---- Optional: Postgres for production persistence ----
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: cloudstack-automation-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_DB=cloudstack_automation
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres -d cloudstack_automation"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - cloudstack-net
+
+volumes:
+  postgres_data:
+
+networks:
+  cloudstack-net:
+    driver: bridge

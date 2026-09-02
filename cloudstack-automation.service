@@ -1,0 +1,18 @@
+[Unit]
+Description=CloudStack Template Automation FastAPI & WebSocket Engine
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=cloudstack
+Group=cloudstack
+WorkingDirectory=/opt/cloudstack-automation
+EnvironmentFile=/opt/cloudstack-automation/.env
+ExecStart=/opt/cloudstack-automation/venv/bin/uvicorn fastapi_backend:app --host 0.0.0.0 --port 8000 --workers 4
+Restart=always
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

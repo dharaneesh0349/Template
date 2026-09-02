@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudStack Template Automation Engine</title>
+  <meta name="description" content="AI-driven dynamic template creation and orchestration engine for Apache CloudStack.">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#1e1b4b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .glow-effect {
+      box-shadow: 0 0 50px -10px rgba(99, 102, 241, 0.25);
+    }
+    .terminal-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .terminal-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    .terminal-scroll::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white flex flex-col">
+
+  <!-- Top Navbar -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white font-bold text-xl">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-300">StackBill Automation</span>
+            <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">CloudStack Engine</span>
+          </div>
+          <p class="text-xs text-slate-400">AI-Powered VM Template Preparation & Orchestration</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-2 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Engine Active
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Active Execution Dashboard View (hidden by default) -->
+    <div id="executionDashboard" class="hidden space-y-6">
+
+      <!-- Header & Execution Banner -->
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-900/80 border border-slate-800 glow-effect">
+        <div>
+          <div class="flex items-center gap-3 mb-1">
+            <h2 class="text-2xl font-bold text-white tracking-tight" id="dashTitle">Executing Template Pipeline</h2>
+            <span id="dashStatusBadge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5">
+              <i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i>
+              IN PROGRESS
+            </span>
+          </div>
+          <p class="text-sm text-slate-400 flex items-center gap-2">
+            Execution ID: <code id="dashExecId" class="font-mono text-indigo-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">--</code>
+            <span class="text-slate-600">•</span>
+            Target: <span id="dashTargetHost" class="font-semibold text-slate-300">--</span>
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="cancelBtn" onclick="cancelCurrentExecution()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition flex items-center gap-2">
+            <i data-lucide="x-circle" class="w-4 h-4"></i>
+            Cancel Run
+          </button>
+          <button onclick="resetToForm()" class="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            New Template
+          </button>
+        </div>
+      </div>
+
+      <!-- Stepper Phases -->
+      <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" id="phasesGrid">
+          <!-- Phase items dynamically managed -->
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3" id="phase-detection">
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">1</div>
+            <div>
+              <p class="text-xs font-bold text-slate-300">Detection</p>
+              <p class="text-[10px] text-slate-500 status-label">Waiting</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3" id="phase-planning">
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">2</div>
+            <div>
+              <p class="text-xs font-bold text-slate-300">Planning</p>
+              <p class="text-[10px] text-slate-500 status-label">Waiting</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3" id="phase-execution">
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">3</div>
+            <div>
+              <p class="text-xs font-bold text-slate-300">Packages</p>
+              <p class="text-[10px] text-slate-500 status-label">Waiting</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3" id="phase-configuration">
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">4</div>
+            <div>
+              <p class="text-xs font-bold text-slate-300">Cloud-init</p>
+              <p class="text-[10px] text-slate-500 status-label">Waiting</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3" id="phase-sealing">
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">5</div>
+            <div>
+              <p class="text-xs font-bold text-slate-300">Sealing</p>
+              <p class="text-[10px] text-slate-500 status-label">Waiting</p>
+            </div>
+          </div>
+          <div class="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center gap-3" id="phase-validation">
+            <div class="w-8 h-8 rounded-lg bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs">6</div>
+            <div>
+              <p class="text-xs font-bold text-slate-300">Validation</p>
+              <p class="text-[10px] text-slate-500 status-label">Waiting</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Environment Discovery & Telemetry Matrix -->
+      <div id="envCard" class="hidden p-6 rounded-2xl bg-gradient-to-br from-slate-900/90 to-indigo-950/30 border border-slate-800">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-4 flex items-center gap-2">
+          <i data-lucide="cpu" class="w-4 h-4"></i>
+          Target VM Telemetry & Environment Profile
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-500 block">Distribution</span>
+            <span id="envDistro" class="text-sm font-bold text-white uppercase mt-0.5 block">--</span>
+          </div>
+          <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-500 block">Version</span>
+            <span id="envVersion" class="text-sm font-bold text-white mt-0.5 block">--</span>
+          </div>
+          <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-500 block">Hypervisor</span>
+            <span id="envHypervisor" class="text-sm font-bold text-indigo-400 uppercase mt-0.5 block">--</span>
+          </div>
+          <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-500 block">Package Mgr</span>
+            <span id="envPkgMgr" class="text-sm font-bold text-white font-mono mt-0.5 block">--</span>
+          </div>
+          <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-500 block">Filesystem</span>
+            <span id="envFS" class="text-sm font-bold text-emerald-400 uppercase mt-0.5 block">--</span>
+          </div>
+          <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <span class="text-[11px] text-slate-500 block">Root Partition</span>
+            <span id="envRootPart" class="text-sm font-bold text-white font-mono text-xs mt-0.5 block truncate">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution Grid: Live Console & Validation Checklist -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Console Stream (2 cols) -->
+        <div class="lg:col-span-2 rounded-2xl bg-slate-900/80 border border-slate-800 overflow-hidden flex flex-col h-[520px]">
+          <div class="px-4 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-yellow-500/80"></span>
+              <span class="w-3 h-3 rounded-full bg-green-500/80"></span>
+              <span class="ml-2 text-xs font-mono text-slate-400 font-semibold flex items-center gap-1.5">
+                <i data-lucide="terminal" class="w-3.5 h-3.5 text-indigo-400"></i>
+                telemetry_live.log
+              </span>
+            </div>
+            <button onclick="clearConsoleLogs()" class="text-[11px] text-slate-400 hover:text-white transition flex items-center gap-1">
+              <i data-lucide="trash-2" class="w-3 h-3"></i> Clear
+            </button>
+          </div>
+          <div id="consoleLogs" class="p-4 font-mono text-xs leading-relaxed space-y-2 overflow-y-auto flex-1 terminal-scroll bg-slate-950 text-slate-300">
+            <div class="text-slate-500 italic">[00:00:00] Initializing telemetry session...</div>
+          </div>
+        </div>
+
+        <!-- Right Side: Validation & Next Steps -->
+        <div class="space-y-6 flex flex-col justify-between">
+
+          <!-- Validation Checklist Card -->
+          <div class="p-6 rounded-2xl bg-slate-900/80 border border-slate-800">
+            <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+              <i data-lucide="check-square" class="w-4 h-4 text-indigo-400"></i>
+              Validation Matrix
+            </h3>
+            <div id="validationList" class="space-y-3 text-xs">
+              <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-slate-400">
+                <span>99_cloudstack.cfg</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-500" id="val-99_cloudstack.cfg_exists">PENDING</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-slate-400">
+                <span>80_user.cfg</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-500" id="val-80_user.cfg_exists">PENDING</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-slate-400">
+                <span>49_hostkeys.cfg</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-500" id="val-49_hostkeys.cfg_exists">PENDING</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-slate-400">
+                <span>cloud-init installed</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-500" id="val-cloud_init_installed">PENDING</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-slate-400">
+                <span>machine-id wiped</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-500" id="val-machine_id_sanitized">PENDING</span>
+              </div>
+              <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800/80 text-slate-400">
+                <span>host keys cleaned</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-500" id="val-ssh_hostkeys_cleaned">PENDING</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Advisor Diagnostic Box (shown only if failure occurs) -->
+          <div id="aiAdvisorCard" class="hidden p-5 rounded-2xl bg-red-950/40 border border-red-800/60 text-xs">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="font-bold text-red-300 flex items-center gap-1.5">
+                <i data-lucide="bot" class="w-4 h-4 text-red-400"></i>
+                AI Self-Healing Advisor
+              </h4>
+              <span id="aiSeverity" class="text-[9px] uppercase px-1.5 py-0.5 rounded font-bold bg-red-500/20 text-red-300 border border-red-500/30">HIGH</span>
+            </div>
+            <p id="aiRootCause" class="text-slate-300 mb-2 font-medium">--</p>
+            <div id="aiRemediationBox" class="p-2 bg-slate-950 rounded border border-red-900/50 font-mono text-[11px] text-amber-300 space-y-1 mb-2"></div>
+            <p id="aiAdvice" class="text-slate-400 italic">--</p>
+          </div>
+
+          <!-- Next Steps Card -->
+          <div id="nextStepsCard" class="hidden p-6 rounded-2xl bg-emerald-950/40 border border-emerald-800/60">
+            <h3 class="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i>
+              Template Ready for Registration!
+            </h3>
+            <ol id="nextStepsList" class="space-y-2 text-xs text-slate-300 list-decimal list-inside leading-relaxed"></ol>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Template Form (Default Screen) -->
+    <div id="createFormContainer" class="max-w-3xl mx-auto space-y-8">
+
+      <!-- Hero Header -->
+      <div class="text-center space-y-3">
+        <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">
+          Create CloudStack <span class="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">Golden Template</span>
+        </h1>
+        <p class="text-base text-slate-400 max-w-xl mx-auto">
+          Enter target VM credentials. Our engine will dynamically detect OS & hypervisor, setup CloudStack cloud-init datasource, configure guest agents, and seal the image.
+        </p>
+      </div>
+
+      <!-- Quick Preset Buttons -->
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        <span class="text-xs text-slate-500 font-semibold">Quick Presets:</span>
+        <button type="button" onclick="setPreset('192.168.1.50', 'root', 'centos', 'kvm')" class="text-xs px-3 py-1 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition">
+          Rocky Linux 9 (KVM)
+        </button>
+        <button type="button" onclick="setPreset('192.168.1.60', 'ubuntu', 'ubuntu', 'kvm')" class="text-xs px-3 py-1 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition">
+          Ubuntu 22.04 LTS (KVM)
+        </button>
+        <button type="button" onclick="setPreset('192.168.1.70', 'root', 'debian', 'xen')" class="text-xs px-3 py-1 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition">
+          Debian 12 (XenServer)
+        </button>
+      </div>
+
+      <!-- Form Card -->
+      <form id="templateForm" onsubmit="handleFormSubmit(event)" class="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl space-y-6 glow-effect">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Host IP -->
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+              Target VM Host / IP Address <span class="text-indigo-400">*</span>
+            </label>
+            <div class="relative">
+              <input type="text" id="ssh_host" required placeholder="e.g. 192.168.1.100 or vm.lab.local"
+                class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono text-sm">
+              <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-500">
+                <i data-lucide="server" class="w-4 h-4"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- SSH Port -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+              SSH Port
+            </label>
+            <input type="number" id="ssh_port" value="22" min="1" max="65535"
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+
+          <!-- SSH Username -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+              SSH Username <span class="text-indigo-400">*</span>
+            </label>
+            <input type="text" id="ssh_username" value="root" required
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+
+          <!-- SSH Password -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+              SSH Password
+            </label>
+            <input type="password" id="ssh_password" placeholder="••••••••••••"
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+
+          <!-- CloudStack Default User -->
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+              CloudStack Default User
+            </label>
+            <input type="text" id="cloudstack_username" value="centos" required placeholder="centos, ubuntu, or root"
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+
+          <!-- Hypervisor Type -->
+          <div class="md:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+              Hypervisor Target Platform
+            </label>
+            <select id="hypervisor_type"
+              class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="auto">Auto-detect Platform Automatically (Recommended)</option>
+              <option value="kvm">KVM / QEMU / Proxmox (qemu-guest-agent)</option>
+              <option value="xen">XenServer / XCP-ng (xe-guest-utilities)</option>
+              <option value="vmware">VMware vSphere (open-vm-tools)</option>
+              <option value="hyperv">Microsoft Hyper-V</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" id="submitBtn"
+          class="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold tracking-wide shadow-lg shadow-indigo-500/25 transition duration-200 flex items-center justify-center gap-3">
+          <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+          <span>Launch Template Automation Pipeline</span>
+        </button>
+
+        <p class="text-center text-xs text-slate-500 flex items-center justify-center gap-1.5">
+          <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+          Credentials are transmitted in-memory and immediately discarded upon pipeline completion.
+        </p>
+
+      </form>
+
+    </div>
+
+  </main>
+
+  <!-- JavaScript Client Logic -->
+  <script>
+    lucide.createIcons();
+
+    let currentExecutionId = null;
+    let ws = null;
+
+    function setPreset(host, user, csUser, hypervisor) {
+      document.getElementById('ssh_host').value = host;
+      document.getElementById('ssh_username').value = user;
+      document.getElementById('cloudstack_username').value = csUser;
+      document.getElementById('hypervisor_type').value = hypervisor;
+    }
+
+    function resetToForm() {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+      document.getElementById('executionDashboard').classList.add('hidden');
+      document.getElementById('createFormContainer').classList.remove('hidden');
+    }
+
+    function clearConsoleLogs() {
+      document.getElementById('consoleLogs').innerHTML = '<div class="text-slate-500 italic">[00:00:00] Logs cleared.</div>';
+    }
+
+    function appendLog(text, level = 'info') {
+      const consoleBox = document.getElementById('consoleLogs');
+      const time = new Date().toTimeString().split(' ')[0];
+      const entry = document.createElement('div');
+      
+      let colorClass = 'text-slate-300';
+      if (level === 'error') colorClass = 'text-red-400 font-bold';
+      else if (level === 'success') colorClass = 'text-emerald-400 font-semibold';
+      else if (level === 'warn') colorClass = 'text-amber-400';
+      else if (level === 'step') colorClass = 'text-indigo-300 font-bold';
+
+      entry.className = `${colorClass} break-words`;
+      entry.innerHTML = `<span class="text-slate-600">[${time}]</span> ${text}`;
+      consoleBox.appendChild(entry);
+      consoleBox.scrollTop = consoleBox.scrollHeight;
+    }
+
+    function setPhaseStatus(phaseId, status) {
+      const el = document.getElementById(`phase-${phaseId}`);
+      if (!el) return;
+      const label = el.querySelector('.status-label');
+      
+      if (status === 'running') {
+        el.className = 'p-3 rounded-xl border border-indigo-500 bg-indigo-950/40 flex items-center gap-3 animate-pulse';
+        label.innerText = 'Active';
+        label.className = 'text-[10px] text-indigo-400 font-bold';
+      } else if (status === 'completed') {
+        el.className = 'p-3 rounded-xl border border-emerald-500/50 bg-emerald-950/30 flex items-center gap-3';
+        label.innerText = 'Done ✓';
+        label.className = 'text-[10px] text-emerald-400 font-bold';
+      } else if (status === 'failed') {
+        el.className = 'p-3 rounded-xl border border-red-500/50 bg-red-950/30 flex items-center gap-3';
+        label.innerText = 'Failed ✗';
+        label.className = 'text-[10px] text-red-400 font-bold';
+      }
+    }
+
+    async function handleFormSubmit(event) {
+      event.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i data-lucide="loader" class="w-5 h-5 animate-spin"></i><span>Starting Pipeline...</span>';
+      lucide.createIcons();
+
+      const payload = {
+        ssh_host: document.getElementById('ssh_host').value.trim(),
+        ssh_port: parseInt(document.getElementById('ssh_port').value) || 22,
+        ssh_username: document.getElementById('ssh_username').value.trim(),
+        ssh_password: document.getElementById('ssh_password').value,
+        cloudstack_username: document.getElementById('cloudstack_username').value.trim(),
+        hypervisor_type: document.getElementById('hypervisor_type').value
+      };
+
+      try {
+        const res = await fetch('/api/template/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || 'Failed to start template automation');
+        }
+
+        const data = await res.json();
+        currentExecutionId = data.execution_id;
+
+        // Switch View
+        document.getElementById('createFormContainer').classList.add('hidden');
+        document.getElementById('executionDashboard').classList.remove('hidden');
+
+        document.getElementById('dashExecId').innerText = currentExecutionId;
+        document.getElementById('dashTargetHost').innerText = `${payload.ssh_username}@${payload.ssh_host}`;
+
+        // Connect WebSocket
+        connectWebSocket(currentExecutionId);
+
+      } catch (err) {
+        alert('Error starting execution: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="play" class="w-5 h-5 fill-current"></i><span>Launch Template Automation Pipeline</span>';
+        lucide.createIcons();
+      }
+    }
+
+    function connectWebSocket(execId) {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/template/${execId}`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        appendLog(`Connected to live telemetry stream for execution ${execId}`, 'success');
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          handleTelemetryMessage(msg);
+        } catch (e) {
+          console.error("WS Parse Error:", e);
+        }
+      };
+
+      ws.onerror = (e) => {
+        appendLog('WebSocket error encountered', 'warn');
+      };
+
+      ws.onclose = () => {
+        appendLog('Telemetry stream disconnected', 'info');
+      };
+    }
+
+    function handleTelemetryMessage(msg) {
+      const type = msg.type;
+
+      if (type === 'current_state') {
+        const exec = msg.execution;
+        if (exec.detected_environment) renderEnvironment(exec.detected_environment);
+        if (exec.validation_checks) renderValidation(exec.validation_checks);
+        if (exec.execution_steps) {
+          exec.execution_steps.forEach(s => appendLog(`Step [${s.name}]: ${s.status}`, s.status === 'completed' ? 'success' : 'info'));
+        }
+      }
+
+      else if (type === 'phase_change') {
+        const phase = msg.phase;
+        appendLog(`→ Phase Transition: ${msg.message || phase.toUpperCase()}`, 'step');
+        if (phase === 'detection') setPhaseStatus('detection', 'running');
+        else if (phase === 'planning') {
+          setPhaseStatus('detection', 'completed');
+          setPhaseStatus('planning', 'running');
+        } else if (phase === 'execution') {
+          setPhaseStatus('planning', 'completed');
+          setPhaseStatus('execution', 'running');
+        } else if (phase === 'configuration') {
+          setPhaseStatus('execution', 'completed');
+          setPhaseStatus('configuration', 'running');
+        } else if (phase === 'sealing') {
+          setPhaseStatus('configuration', 'completed');
+          setPhaseStatus('sealing', 'running');
+        } else if (phase === 'validation') {
+          setPhaseStatus('sealing', 'completed');
+          setPhaseStatus('validation', 'running');
+        }
+      }
+
+      else if (type === 'environment_detected') {
+        renderEnvironment(msg.environment);
+        appendLog(`✓ Environment Identified: ${msg.environment.distribution} ${msg.environment.version} on ${msg.environment.hypervisor}`, 'success');
+      }
+
+      else if (type === 'step_update') {
+        const step = msg.step;
+        if (step.status === 'running') {
+          appendLog(`Executing: ${step.name} (${step.description || ''})`, 'info');
+        } else if (step.status === 'completed') {
+          appendLog(`✓ ${step.name} completed`, 'success');
+        } else if (step.status === 'failed') {
+          appendLog(`✗ ${step.name} FAILED: ${step.error || ''}`, 'error');
+          // Trigger AI Diagnostic
+          triggerAIDiagnosis(step);
+        }
+      }
+
+      else if (type === 'validation_update') {
+        renderValidation(msg.validation);
+      }
+
+      else if (type === 'execution_complete') {
+        const status = msg.status;
+        const badge = document.getElementById('dashStatusBadge');
+        if (status === 'completed') {
+          setPhaseStatus('validation', 'completed');
+          badge.className = 'text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5';
+          badge.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i> COMPLETED';
+          appendLog('🎉 TEMPLATE AUTOMATION COMPLETED SUCCESSFULLY!', 'success');
+
+          if (msg.result && msg.result.next_steps) {
+            renderNextSteps(msg.result.next_steps);
+          }
+        } else {
+          badge.className = 'text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/30 flex items-center gap-1.5';
+          badge.innerHTML = '<i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> FAILED';
+          appendLog(`Template Pipeline Failed: ${msg.error || 'Unknown error'}`, 'error');
+        }
+        lucide.createIcons();
+      }
+    }
+
+    function renderEnvironment(env) {
+      document.getElementById('envCard').classList.remove('hidden');
+      document.getElementById('envDistro').innerText = env.distribution || '--';
+      document.getElementById('envVersion').innerText = env.version || '--';
+      document.getElementById('envHypervisor').innerText = env.hypervisor || '--';
+      document.getElementById('envPkgMgr').innerText = env.package_manager || '--';
+      document.getElementById('envFS').innerText = env.filesystem_type || '--';
+      document.getElementById('envRootPart').innerText = env.root_partition || '--';
+    }
+
+    function renderValidation(val) {
+      for (const [key, passed] of Object.entries(val)) {
+        const el = document.getElementById(`val-${key}`);
+        if (el) {
+          if (passed) {
+            el.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+            el.innerText = 'PASSED ✓';
+          } else {
+            el.className = 'text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30';
+            el.innerText = 'FAILED ✗';
+          }
+        }
+      }
+    }
+
+    function renderNextSteps(steps) {
+      const card = document.getElementById('nextStepsCard');
+      const list = document.getElementById('nextStepsList');
+      list.innerHTML = '';
+      steps.forEach(step => {
+        const li = document.createElement('li');
+        li.innerText = step;
+        list.appendChild(li);
+      });
+      card.classList.remove('hidden');
+    }
+
+    async function triggerAIDiagnosis(failedStep) {
+      try {
+        const res = await fetch('/api/ai/diagnose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            execution_id: currentExecutionId,
+            step_name: failedStep.name,
+            command: failedStep.command || '',
+            error_output: failedStep.error || ''
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('aiAdvisorCard').classList.remove('hidden');
+          document.getElementById('aiSeverity').innerText = (data.severity || 'high').toUpperCase();
+          document.getElementById('aiRootCause').innerText = data.root_cause || 'Step execution encountered error.';
+          document.getElementById('aiAdvice').innerText = data.advice || '';
+          
+          const remBox = document.getElementById('aiRemediationBox');
+          if (data.remediation_commands && data.remediation_commands.length) {
+            remBox.innerHTML = '<strong>Suggested Remediation:</strong><br>' + data.remediation_commands.join('<br>');
+            remBox.classList.remove('hidden');
+          } else {
+            remBox.classList.add('hidden');
+          }
+          lucide.createIcons();
+        }
+      } catch (e) {
+        console.error("AI Advisor error:", e);
+      }
+    }
+
+    async function cancelCurrentExecution() {
+      if (!currentExecutionId) return;
+      if (!confirm('Are you sure you want to cancel this template run?')) return;
+      try {
+        await fetch(`/api/template/${currentExecutionId}/cancel`, { method: 'POST' });
+      } catch (e) {
+        alert('Cancellation failed: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
